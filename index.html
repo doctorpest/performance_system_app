@@ -325,10 +325,10 @@ const PROGRAM = {
   weekSchedule:[
     {day:'mon',label:'Monday',session:'Push',focus:'Chest / Shoulders / Triceps',isTraining:true},
     {day:'tue',label:'Tuesday',session:'Pull',focus:'Back / Biceps',isTraining:true},
-    {day:'wed',label:'Wednesday',session:'Legs',focus:'Quad focus',isTraining:true},
+    {day:'wed',label:'Wednesday',session:'Legs (Quad)',focus:'Quad focus',isTraining:true},
     {day:'thu',label:'Thursday',session:'LISS',focus:'Active Recovery — Zone 2',isTraining:false,isLISS:true},
     {day:'fri',label:'Friday',session:'Upper',focus:'Deadlift + Compounds (45 min)',isTraining:true},
-    {day:'sat',label:'Saturday',session:'Legs',focus:'Posterior Chain / Glutes',isTraining:true},
+    {day:'sat',label:'Saturday',session:'Legs (Glutes)',focus:'Posterior Chain / Glutes',isTraining:true},
     {day:'sun',label:'Sunday',session:'Rest',focus:'Full Rest + Meal Prep',isTraining:false},
   ],
   exercises:{
@@ -675,7 +675,9 @@ function renderTraining(){
   const p = DB.getProfile();
   const week = weekNum(p.startDate||today());
   const workout = DB.getWorkout(today());
-  const sessionKey = {Push:'push',Pull:'pull',Legs:'legs_quad',Upper:'upper',LISS:'liss'}[sched.session] || (sched.day==='sat'?'legs_post':'liss');
+  const sessionKey = sched.day==='sat' ? 'legs_post'
+                   : sched.day==='wed' ? 'legs_quad'
+                   : {Push:'push',Pull:'pull',Upper:'upper',LISS:'liss',Rest:'liss'}[sched.session] || 'liss';
   const exercises = PROGRAM.exercises[sessionKey]||[];
 
   // Week calendar
@@ -1166,7 +1168,9 @@ function openLogMacros(){
 
 function openLogStrength(){
   const sched = getDaySchedule(today());
-  const sessionKey = {Push:'push',Pull:'pull',Legs:'legs_quad',Upper:'upper'}[sched.session]||'push';
+  const sessionKey = sched.day==='sat' ? 'legs_post'
+                   : sched.day==='wed' ? 'legs_quad'
+                   : {Push:'push',Pull:'pull',Upper:'upper'}[sched.session]||'push';
   const exs = PROGRAM.exercises[sessionKey]||[];
   openModal(`<button class="modal-close" onclick="closeModal()">×</button>
   <h2>Log Strength</h2>
