@@ -677,8 +677,12 @@ function renderTraining(){
   const workout = DB.getWorkout(today());
   const sessionKey = sched.day==='sat' ? 'legs_post'
                    : sched.day==='wed' ? 'legs_quad'
-                   : {Push:'push',Pull:'pull',Upper:'upper',LISS:'liss',Rest:'liss'}[sched.session] || 'liss';
-  const exercises = PROGRAM.exercises[sessionKey]||[];
+                   : sched.day==='sun' ? 'rest'
+                   : sched.day==='thu' ? 'liss'
+                   : {Push:'push',Pull:'pull',Upper:'upper'}[sched.session] || 'rest';
+  const exercises = sessionKey==='rest' ? [] : (PROGRAM.exercises[sessionKey]||[]);
+  const isRestDay = sessionKey==='rest';
+  const isLISSDay = sessionKey==='liss';
 
   // Week calendar
   const days = ['mon','tue','wed','thu','fri','sat','sun'];
@@ -709,6 +713,45 @@ function renderTraining(){
   </div>
 
   <div class="section-label">Today — ${sched.session} Day</div>
+  ${isRestDay ? `
+  <div class="card" style="text-align:center;padding:32px 16px;">
+    <div style="font-size:48px;margin-bottom:12px;">🛌</div>
+    <div style="font-size:16px;font-weight:700;margin-bottom:6px;">Full Rest Day</div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:18px;">No training today. Use this time for meal prep, sleep, and full recovery — your CNS needs it.</div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px;text-align:left;margin-bottom:14px;">
+      <div style="font-size:11px;color:var(--text3);font-family:var(--mono);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">Optional today</div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text2);">
+        • Light walk (20–30 min, zone 1)<br>
+        • 15 min mobility work<br>
+        • Sunday meal prep (75 min batch cook)<br>
+        • Sleep in if possible
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--text3);font-family:var(--mono);">Week ${Math.min(week,8)} · Phase ${PROGRAM.phases.indexOf(getPhase(week))+1}</div>
+  </div>
+  ` : isLISSDay ? `
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <div>
+        <div style="font-size:15px;font-weight:700;">Active Recovery</div>
+        <div style="font-size:11px;color:var(--text2);font-family:var(--mono);margin-top:3px;">Week ${Math.min(week,8)} · Zone 2 only</div>
+      </div>
+      ${workout&&workout.completed?`<div style="color:var(--teal);font-size:12px;font-weight:700;">✓ DONE</div>`:
+      `<button class="btn btn-primary btn-sm" onclick="logLISS()">Log Cardio</button>`}
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px;margin-bottom:10px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">🚴 LISS Cardio</div>
+      <div style="font-size:12px;color:var(--text2);">25–30 min · Zone 2 (conversational pace) · Bike, brisk walk, or elliptical</div>
+    </div>
+    <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--r2);padding:14px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">🧘 Mobility</div>
+      <div style="font-size:12px;color:var(--text2);">15 min · Hip flexors, T-spine, lats, hamstrings</div>
+    </div>
+    <div class="alt-scroll" style="margin-top:14px;">
+      ${PROGRAM.exercises.liss[0].alt.map(a=>`<div class="alt-chip"><div class="name">${a}</div><div class="detail">LISS alternative</div></div>`).join('')}
+    </div>
+  </div>
+  ` : `
   <div class="card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div>
@@ -727,13 +770,14 @@ function renderTraining(){
       <button class="item-action" onclick="showExerciseAlts('${ex.name}',${JSON.stringify(ex.alt).replace(/"/g,'&quot;')})">Alt?</button>
     </div>`).join('')}
   </div>
+  `}
 
   <div class="section-label">Strength Benchmarks</div>
   <div class="card" id="bench-card">
     ${renderBenchmarks()}
   </div>
   <div style="padding:0 16px;">
-    <button class="btn btn-ghost btn-sm btn-block" onclick="openLogStrength()">Log Strength</button>
+    ${!isRestDay ? `<button class="btn btn-ghost btn-sm btn-block" onclick="openLogStrength()">Log Strength</button>` : ''}
   </div>
   </div>`;
 }
@@ -1199,6 +1243,33 @@ function saveStrengthLog(names){
     if(idx>=0) w.exercises[idx].sets.push(...ex.sets);
     else w.exercises.push(ex);
   });
+  w.completed = true;
+  DB.saveWorkout(w);
+  closeModal();
+  renderTab(currentTab);
+}
+
+function logLISS(){
+  openModal(`<button class="modal-close" onclick="closeModal()">×</button>
+  <h2>Log Active Recovery</h2>
+  <p style="font-size:13px;color:var(--text2);margin-bottom:14px;">Mark today's cardio + mobility as complete.</p>
+  <div class="form-group"><label>Cardio type</label><select id="liss-type">
+    <option>Bike (Zone 2)</option><option>Brisk Walk</option><option>Elliptical</option><option>Rowing (easy)</option><option>Other</option>
+  </select></div>
+  <div class="form-group"><label>Duration (minutes)</label><input type="number" id="liss-dur" placeholder="25" value="25"></div>
+  <div class="form-group"><label>Mobility done?</label>
+    <div class="toggle">
+      <button class="toggle-btn active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));this.classList.add('active');" data-v="yes">Yes</button>
+      <button class="toggle-btn" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));this.classList.add('active');" data-v="no">No</button>
+    </div>
+  </div>
+  <button class="btn btn-primary btn-block" onclick="saveLISSLog()">Mark Complete ✓</button>`);
+}
+function saveLISSLog(){
+  const type = document.getElementById('liss-type').value;
+  const dur = parseFloat(document.getElementById('liss-dur').value)||0;
+  const w = DB.getWorkout(today())||{date:today(),exercises:[],completed:false};
+  w.exercises = [{name:type, sets:[{weight:0,reps:dur+' min'}], type:'liss'}];
   w.completed = true;
   DB.saveWorkout(w);
   closeModal();
